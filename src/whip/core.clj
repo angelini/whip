@@ -12,34 +12,45 @@
    pane :- s/Int
    window :- s/Int])
 
+(sm/defrecord Buffer
+  [id :- s/Int
+   name :- s/Str
+   content :- [[]]
+   meta :- {}])
+
 (sm/defrecord Pane
   [id :- s/Int
-   buf-x :- s/Int
-   buf-y :- s/Int
    width :- s/Int
    height :- s/Int
-   buffer :- s/Int])
+   buffer :- s/Int
+   buf-x :- s/Int
+   buf-y :- s/Int])
 
 (sm/defrecord PaneLocation
-  [x :- s/Int
-   y :- s/Int
-   pane :- s/Int])
+  [pane :- s/Int
+   x :- s/Int
+   y :- s/Int])
 
 (sm/defrecord Window
   [id :- s/Int
    name :- s/Str
-   panes :- [PaneLocation]])
+   pane-locs :- [PaneLocation]])
 
 (sm/defrecord State
-  [cursor :- Cursor
-   panes :- [Pane]
-   windows :- [Window]])
+  [wid :- s/Int
+   cursor :- Cursor
+   buffers :- {s/Int Buffer}
+   panes :- {s/Int Pane}
+   windows :- {s/Int Window}])
 
 (defn move-cursor [x y]
   (sm/fn new-state :- State [state :- State]
     (-> state
         (update-in [:cursor :x] + x)
         (update-in [:cursor :y] + y))))
+
+(defn insert-char [c]
+  (sm/fn new-state :- State [state :- State] state))
 
 (defn print-miss [c]
   (sm/fn new-state :- State [state :- State]
@@ -53,13 +64,78 @@
     [:down] (move-cursor 0 1)
     [:left] (move-cursor -1 0)
     [:right] (move-cursor 1 0)
+    [#"a-zA-Z" (insert-char c)]
     :else (print-miss c)))
 
 (defn create-system []
   (component/system-map
     :display (create-display :swing)))
 
-(def state (State. (Cursor. 0 0 0 0) [] []))
+(def buffer-id (atom 0))
+(def pane-id (atom 0))
+(def window-id (atom 0))
+
+(defn create-buffer
+  ([] (create-buffer "-- buffer --"))
+  ([name] (map->Buffer {:id (swap! buffer-id inc)
+                        :name name})))
+
+(defn create-pane [width height buffer]
+  (map->Pane {:id (swap! pane-id inc)
+              :width width
+              :height height
+              :buffer buffer
+              :buf-x 0 :buf-y 0}))
+
+(defn create-window
+  ([] (create-window "-- window --"))
+  ([name] (map->Window {:id (swap! window-id inc)
+                        :name name})))
+
+(defn init-state [width height]
+  (let [buffer (create-buffer)
+        pane (create-pane width height (:id buffer))
+        location (PaneLocation. (:id pane) 0 0)
+        window (-> (create-window)
+                   (assoc :pane-locs [location]))]
+    (map->State {:wid 0
+                 :cursor (Cursor. 0 0 0 0)
+                 :buffers {(:id buffer) buffer}
+                 :panes {(:id pane) pane}
+                 :windows {(:id window) window}})))
+
+(defn draw-borders [display loc pane]
+  (let [top (:y loc)
+        bottom (+ top (:height pane))
+        left (:x loc)
+        right (+ left (:width pane))]
+    (for [x (range left right)]
+      (do (put-char display x (- top 1) "-")
+          (put-char display x (+ bottom 1) "-")))
+    (for [y (range top bottom)]
+      (do (put-char display y (- left 1) "|")
+          (put-char display y (+ right 1) "|")))))
+
+(defn draw-pane [display loc pane buffer]
+  (let [{:keys [x y]} loc
+        {:keys [height width]} pane
+        content (:content buffer)
+        row-len (count content)
+        first-row (min row-len y)
+        last-row (min row-len (+ y height))]
+    (for [i (range first-row last-row)
+         :let [row (nth i content)
+               col-len (count row)
+               first-col (min col-len x)
+               last-col (min col-len (+ x width))]]
+      (for [j (range first-col last-col)]
+        (put-char display i j (nth j row))))))
+
+(defn draw [display buffers panes window]
+  (for [loc (:pane-locs window)
+        :let [pane (get panes (:pane loc))]]
+    (do (draw-borders loc pane)
+        (draw-pane loc pane (get buffers (:buffer pane))))))
 
 (defn main [system init-state]
   (loop [state init-state]
@@ -67,8 +143,10 @@
           c (async/<!! (input-chan display))
           f (translate c)
           new-state (f state)
-          cursor (:cursor new-state)]
+          {:keys [wid cursor buffers panes windows]} new-state
+          window (get windows wid)]
       (println "state -->" new-state)
+      (draw display panes buffers window)
       (set-cursor display (:x cursor) (:y cursor))
       (redraw display)
       (recur new-state))))

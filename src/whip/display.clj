@@ -41,5 +41,8 @@
 (defn set-cursor [display x y]
   (s/move-cursor (:screen display) x y))
 
+(defn put-char [display x y c]
+  (s/put-string (:screen display) x y c))
+
 (defn redraw [display]
   (s/redraw (:screen display)))
