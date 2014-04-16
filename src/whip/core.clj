@@ -64,7 +64,7 @@
     [:down] (move-cursor 0 1)
     [:left] (move-cursor -1 0)
     [:right] (move-cursor 1 0)
-    [#"a-zA-Z" (insert-char c)]
+    [#"a-zA-Z"] (insert-char c)
     :else (print-miss c)))
 
 (defn create-system []
@@ -98,7 +98,7 @@
         location (PaneLocation. (:id pane) 0 0)
         window (-> (create-window)
                    (assoc :pane-locs [location]))]
-    (map->State {:wid 0
+    (map->State {:wid (:id window)
                  :cursor (Cursor. 0 0 0 0)
                  :buffers {(:id buffer) buffer}
                  :panes {(:id pane) pane}
@@ -113,8 +113,9 @@
       (do (put-char display x (- top 1) "-")
           (put-char display x (+ bottom 1) "-")))
     (for [y (range top bottom)]
-      (do (put-char display y (- left 1) "|")
-          (put-char display y (+ right 1) "|")))))
+      (do (println "x: [" (- left 1) ", " (+ right 1) "], y: " y)
+          (put-char display (- left 1) y "|")
+          (put-char display (+ right 1) y "|")))))
 
 (defn draw-pane [display loc pane buffer]
   (let [{:keys [x y]} loc
@@ -134,8 +135,8 @@
 (defn draw [display buffers panes window]
   (for [loc (:pane-locs window)
         :let [pane (get panes (:pane loc))]]
-    (do (draw-borders loc pane)
-        (draw-pane loc pane (get buffers (:buffer pane))))))
+    (do (draw-borders display loc pane)
+        (draw-pane display loc pane (get buffers (:buffer pane))))))
 
 (defn main [system init-state]
   (loop [state init-state]
@@ -146,7 +147,7 @@
           {:keys [wid cursor buffers panes windows]} new-state
           window (get windows wid)]
       (println "state -->" new-state)
-      (draw display panes buffers window)
+      (draw display buffers panes window)
       (set-cursor display (:x cursor) (:y cursor))
       (redraw display)
       (recur new-state))))
