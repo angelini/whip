@@ -17,7 +17,7 @@
   (let [buffer (create-buffer)
         pane (create-pane (:id buffer) width height)
         window (create-window (:id pane))
-        [wid pid bid] (map :id '(window pane buffer))]
+        [wid pid bid] (map :id [window pane buffer])]
     (map->State {:buffers {bid buffer}
                  :panes {pid pane}
                  :windows {wid window}

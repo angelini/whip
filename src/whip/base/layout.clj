@@ -48,7 +48,7 @@
   ([pane] (create-window pane "-- window --"))
   ([pane name] (map->Window {:id (swap! window-id inc)
                              :name name
-                             :locs {(:id pane) {:x 0 :y 0}}})))
+                             :locs {pane {:x 0 :y 0}}})))
 
 (defn visible-cols [row start end]
   (let [col-len (count row)
@@ -65,8 +65,5 @@
         row-len (count content)
         first-row (min row-len buf-y)
         last-row (min row-len (+ buf-y height))]
-    (println "pane " pane)
-    (println "buffer " buffer)
-    (println "content " content)
     (map (fn [r] (visible-cols r buf-x (+ buf-x width)))
          (subvec content first-row last-row))))
