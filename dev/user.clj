@@ -3,8 +3,10 @@
             [clojure.core.async :as async]
             [com.stuartsierra.component :as component]
             [schema.core :as schema]
+            [schema.macros :as sm]
             [whip.base.layout :refer :all]
             [whip.base.state :refer :all]
+            [whip.base.macros :refer :all]
             [whip.display :refer :all]
             [whip.loader :refer :all]
             [whip.core :refer :all]))
