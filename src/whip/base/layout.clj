@@ -1,4 +1,4 @@
-(ns whip.layout
+(ns whip.base.layout
   (:require [schema.core :as s]
             [schema.macros :as sm]))
 
@@ -24,7 +24,8 @@
 (sm/defrecord Window
   [id :- s/Int
    name :- s/Str
-   pane-locs :- {s/Int PaneLocation}])
+   locs :- {s/Int {:x s/Int
+                   :y s/Int}}])
 
 (def buffer-id (atom 0))
 (def pane-id (atom 0))
@@ -36,21 +37,18 @@
                         :name name
                         :content [[]]})))
 
-(defn create-pane [width height buffer]
+(defn create-pane [buffer width height]
   (map->Pane {:id (swap! pane-id inc)
               :width width
               :height height
               :buffer buffer
               :buf-x 0 :buf-y 0}))
 
-(defn create-loc [pane x y]
-  (map->PaneLocation {:pane pane
-                      :x x :y y}))
-
 (defn create-window
-  ([] (create-window "-- window --"))
-  ([name] (map->Window {:id (swap! window-id inc)
-                        :name name})))
+  ([pane] (create-window pane "-- window --"))
+  ([pane name] (map->Window {:id (swap! window-id inc)
+                             :name name
+                             :locs {(:id pane) {:x 0 :y 0}}})))
 
 (defn visible-cols [row start end]
   (let [col-len (count row)
@@ -67,5 +65,8 @@
         row-len (count content)
         first-row (min row-len buf-y)
         last-row (min row-len (+ buf-y height))]
+    (println "pane " pane)
+    (println "buffer " buffer)
+    (println "content " content)
     (map (fn [r] (visible-cols r buf-x (+ buf-x width)))
          (subvec content first-row last-row))))

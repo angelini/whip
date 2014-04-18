@@ -46,3 +46,6 @@
 
 (defn redraw [display]
   (s/redraw (:screen display)))
+
+(defn size [display]
+  (s/get-size (:screen display)))
