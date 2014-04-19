@@ -8,6 +8,6 @@
                  [org.clojure/core.async "0.1.278.0-76b25b-alpha"]
                  [com.stuartsierra/component "0.2.1"]
                  [prismatic/schema "0.2.1"]
-                 [clojure-lanterna "0.9.4"]]
+                 [com.googlecode.lanterna/lanterna "2.1.5"]]
   :profiles {:dev {:source-paths ["dev"]
                    :dependencies [[org.clojure/tools.namespace "0.2.4"]]}})

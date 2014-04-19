@@ -1,25 +1,34 @@
 (ns whip.display
   (:require [clojure.core.async :as async]
-            [com.stuartsierra.component :as component]
-            [lanterna.screen :as s]))
+            [com.stuartsierra.component :as component])
+  (:import [com.googlecode.lanterna TerminalFacade]))
+
+(defn parse-key [k]
+  {:char (.getCharacter k)
+   :alt? (.isAltPressed k)
+   :ctrl? (.isCtrlPressed k)})
 
 (defn listen-for-input [screen chan]
   (async/go
     (loop []
-      (async/>! chan (s/get-key-blocking screen))
-      (recur))))
+      (let [_ (<! (async/timeout 100))
+            k (.readInput screen)]
+        (if (nil? k)
+          (recur)
+          (do (async/>! chan (parse-key k))
+              (recur)))))))
 
-(defrecord Display [console-type screen input-chan]
+(defrecord Display [screen input-chan]
   component/Lifecycle
 
   (start [this]
     (println "; Starting display")
     (if screen
       this
-      (let [scr (s/get-screen console-type)
+      (let [scr (TerminalFacade/createScreen)
             chan (async/chan)]
         (listen-for-input scr chan)
-        (s/start scr)
+        (.startScreen scr)
         (assoc this :screen scr
                     :input-chan chan))))
 
@@ -28,24 +37,25 @@
     (if-not screen
       this
       (do
-        (s/stop screen)
+        (.stopScreen screen)
         (async/close! input-chan)
         (assoc this :screen nil)))))
 
-(defn create-display [console-type]
-  (map->Display {:console-type console-type}))
+(defn create-display []
+  (map->Display {}))
 
 (defn input-chan [display]
   (:input-chan display))
 
 (defn set-cursor [display x y]
-  (s/move-cursor (:screen display) x y))
+  (.moveCursor (:screen display) x y))
 
 (defn put-char [display x y c]
-  (s/put-string (:screen display) x y c))
+  (.putString (:screen display) x y c))
 
-(defn redraw [display]
-  (s/redraw (:screen display)))
+(defn refresh-screen [display]
+  (.refresh (:screen display)))
 
 (defn size [display]
-  (s/get-size (:screen display)))
+  (let [s (.getTerminalSize (:screen display))]
+    [(.getColumns s) (.getRows s)]))

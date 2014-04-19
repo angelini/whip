@@ -10,7 +10,7 @@
 
 (defn create-system []
   (component/system-map
-    :display (create-display :swing)
+    :display (create-display)
     :loader (create-loader ["default"])))
 
 (defn init-state [width height translate]
@@ -64,7 +64,7 @@
       (println "state -->" new-state)
       (draw display buffers panes window)
       (set-cursor display (:x cursor) (:y cursor))
-      (redraw display)
+      (refresh-screen display)
       (recur new-state))))
 
 (defn main [system]

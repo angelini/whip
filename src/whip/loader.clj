@@ -28,4 +28,4 @@
   (map->Loader {:plugins plugins}))
 
 (defn plugin [loader name]
-  (nth (:loaded loader) (.indexOf (:plugins loader) name)))
+  (nth (:loaded loader) (.indexOf ^clojure.lang.PersistentVector (:plugins loader) name)))
