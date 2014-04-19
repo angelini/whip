@@ -15,7 +15,8 @@
    window :- s/Int])
 
 (sm/defrecord State
-  [cursor :- Cursor
+  [mode :- Mode
+   cursor :- Cursor
    buffers :- {s/Int Buffer}
    panes :- {s/Int Pane}
    windows :- {s/Int Window}])
