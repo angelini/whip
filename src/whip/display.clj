@@ -1,20 +1,43 @@
 (ns whip.display
   (:require [clojure.core.async :as async]
             [com.stuartsierra.component :as component])
-  (:import [com.googlecode.lanterna TerminalFacade]))
+  (:import [com.googlecode.lanterna TerminalFacade]
+           [com.googlecode.lanterna.input Key Key$Kind]
+           [com.googlecode.lanterna.terminal Terminal$Color]))
+
+(def key-codes
+  {Key$Kind/NormalKey :normal
+   Key$Kind/Escape :escape
+   Key$Kind/Backspace :backspace
+   Key$Kind/ArrowLeft :left
+   Key$Kind/ArrowRight :right
+   Key$Kind/ArrowUp :up
+   Key$Kind/ArrowDown :down
+   Key$Kind/Insert :insert
+   Key$Kind/Delete :delete
+   Key$Kind/Home :home
+   Key$Kind/End :end
+   Key$Kind/PageUp :page-up
+   Key$Kind/PageDown :page-down
+   Key$Kind/Tab :tab
+   Key$Kind/ReverseTab :reverse-tab
+   Key$Kind/Enter :enter
+   Key$Kind/Unknown :unknown
+   Key$Kind/CursorLocation :cursor-location})
 
 (defn parse-key [k]
-  {:char (.getCharacter k)
-   :alt? (.isAltPressed k)
-   :ctrl? (.isCtrlPressed k)})
+  (let [kind (key-codes (.getKind k))]
+    {:char (if (= kind :normal) (.getCharacter k) kind)
+     :alt? (.isAltPressed k)
+     :ctrl? (.isCtrlPressed k)}))
 
 (defn listen-for-input [screen chan]
   (async/go
     (loop []
-      (let [_ (<! (async/timeout 100))
-            k (.readInput screen)]
+      (let [k (.readInput screen)]
         (if (nil? k)
-          (recur)
+          (do (<! (async/timeout 100))
+              (recur))
           (do (async/>! chan (parse-key k))
               (recur)))))))
 
@@ -48,10 +71,12 @@
   (:input-chan display))
 
 (defn set-cursor [display x y]
-  (.moveCursor (:screen display) x y))
+  (.setCursorPosition (:screen display) x y))
 
 (defn put-char [display x y c]
-  (.putString (:screen display) x y c))
+  (.putString (:screen display) x y c
+                                Terminal$Color/DEFAULT
+                                Terminal$Color/DEFAULT #{}))
 
 (defn refresh-screen [display]
   (.refresh (:screen display)))

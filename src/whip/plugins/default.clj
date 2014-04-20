@@ -45,7 +45,7 @@
       state)))
 
 (defn translate [c]
-  (match [c]
+  (match [(:char c)]
     [:up] (move-cursor 0 -1)
     [:down] (move-cursor 0 1)
     [:left] (move-cursor -1 0)
