@@ -38,6 +38,17 @@
        (assoc pane :height cur-height)
        (assoc panes (:id new-pane) new-pane)]))))
 
+(defn switch-pane [x-inc y-inc]
+  (with-window-panes-cursor (fn [window panes cursor]
+    (loop [x (:x cursor)
+           y (:y cursor)]
+      (let [{:keys [id] :as pane} (pane-at window panes x y)]
+        (cond (nil? pane) [window panes cursor]
+              (not= id (:pane cursor)) [window panes (assoc cursor :x x
+                                                                   :y y
+                                                                   :pane id)]
+              :else (recur (+ x x-inc) (+ y y-inc))))))))
+
 (defn print-miss [c]
   (fn [state]
     (do
@@ -45,11 +56,16 @@
       state)))
 
 (defn translate [c]
-  (match [(:char c)]
-    [:up] (move-cursor 0 -1)
-    [:down] (move-cursor 0 1)
-    [:left] (move-cursor -1 0)
-    [:right] (move-cursor 1 0)
-    [\v] (split-vertical)
-    [\h] (split-horizontal)
-    :else (print-miss c)))
+  (do (println c)
+  (match [(:char c) (:ctrl? c) (:alt? c)]
+    [:up true _] (switch-pane 0 -1)
+    [:down true _] (switch-pane 0 1)
+    [:left true _] (switch-pane -1 0)
+    [:right true _] (switch-pane 1 0)
+    [:up false _] (move-cursor 0 -1)
+    [:down false _] (move-cursor 0 1)
+    [:left false _] (move-cursor -1 0)
+    [:right false _] (move-cursor 1 0)
+    [\v _ _] (split-vertical)
+    [\h _ _] (split-horizontal)
+    :else (print-miss c))))

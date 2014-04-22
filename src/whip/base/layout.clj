@@ -56,6 +56,11 @@
         last-col (min col-len end)]
     (subvec row first-col last-col)))
 
+(defn in-pane? [loc panes x y]
+  (let [pane ((:pane loc) panes)]
+    (and (<= (:x loc) x (+ (:x loc) (:width pane)))
+         (<= (:y loc) y (+ (:y loc) (:height pane))))))
+
 (sm/defn visible-content :- [[Character]]
   "Returns the content of the buffer visible within the pane"
   [pane :- Pane
@@ -67,3 +72,15 @@
         last-row (min row-len (+ buf-y height))]
     (map (fn [r] (visible-cols r buf-x (+ buf-x width)))
          (subvec content first-row last-row))))
+
+(sm/defn pane-at :- s/Int
+  "Returns the ID of the pane at x and y"
+  [window :- Window
+   panes :- [Pane]
+   x :- s/Int
+   y :- s/Int]
+  (loop [[loc & locs] (:locs window)]
+    (if (or (in-pane? loc panes x y)
+            (nil? loc))
+      (:pane loc)
+      (recur locs))))
