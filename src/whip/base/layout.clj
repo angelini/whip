@@ -2,6 +2,14 @@
   (:require [schema.core :as s]
             [schema.macros :as sm]))
 
+(def Color (s/enum :black
+                   :white))
+
+(sm/defrecord Cell
+  [c :- Character
+   fg :- Color
+   bg :- Color])
+
 (sm/defrecord Buffer
   [id :- s/Int
    name :- s/Str

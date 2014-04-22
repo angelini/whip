@@ -1,6 +1,7 @@
 (ns whip.core
   (:require [whip.base.layout :refer :all]
             [whip.base.state :refer :all]
+            [whip.server :refer :all]
             [whip.display :refer :all]
             [whip.loader :refer :all]
             [clojure.core.async :as async]
@@ -10,8 +11,11 @@
 
 (defn create-system []
   (component/system-map
-    :display (create-display)
-    :loader (create-loader ["default"])))
+    :server (create-server 8080)
+    :loader (create-loader ["default"])
+    :display (component/using
+               (create-display)
+               [:server])))
 
 (defn init-state [width height translate]
   (let [buffer (create-buffer)
@@ -54,7 +58,7 @@
     (draw-borders display loc pane)
     (draw-pane display loc pane (get buffers (:buffer pane)))))
 
-(defn listen [display init-state]
+(defn draw-loop [display init-state]
   (loop [state init-state]
     (let [c (async/<!! (input-chan display))
           f ((get-in state [:mode :translate]) c)
@@ -64,7 +68,7 @@
       (println "state -->" new-state)
       (draw display buffers panes window)
       (set-cursor display (:x cursor) (:y cursor))
-      (refresh-screen display)
+      (sync-display display)
       (recur new-state))))
 
 (defn main [system]
@@ -73,4 +77,4 @@
         default (plugin loader "default")
         translate ('translate (ns-map default))
         state (init-state width height translate)]
-    (listen display state)))
+    (draw-loop display state)))

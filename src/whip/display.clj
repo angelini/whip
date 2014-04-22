@@ -1,86 +1,53 @@
 (ns whip.display
-  (:require [clojure.core.async :as async]
-            [com.stuartsierra.component :as component])
-  (:import [com.googlecode.lanterna TerminalFacade]
-           [com.googlecode.lanterna.input Key Key$Kind]
-           [com.googlecode.lanterna.terminal Terminal$Color]))
+  (:require [whip.server :refer :all]
+            [whip.base.layout :refer :all]
+            [clojure.core.async :as async]
+            [com.stuartsierra.component :as component]
+            [schema.core :as s]
+            [schema.macros :as sm])
+  (:import [whip.base.layout Cell]))
 
-(def key-codes
-  {Key$Kind/NormalKey :normal
-   Key$Kind/Escape :escape
-   Key$Kind/Backspace :backspace
-   Key$Kind/ArrowLeft :left
-   Key$Kind/ArrowRight :right
-   Key$Kind/ArrowUp :up
-   Key$Kind/ArrowDown :down
-   Key$Kind/Insert :insert
-   Key$Kind/Delete :delete
-   Key$Kind/Home :home
-   Key$Kind/End :end
-   Key$Kind/PageUp :page-up
-   Key$Kind/PageDown :page-down
-   Key$Kind/Tab :tab
-   Key$Kind/ReverseTab :reverse-tab
-   Key$Kind/Enter :enter
-   Key$Kind/Unknown :unknown
-   Key$Kind/CursorLocation :cursor-location})
+(sm/defrecord DisplayBuffer
+  [cursor :- {:x s/Int :y s/Int}
+   content :- [[Cell]]])
 
-(defn parse-key [k]
-  (let [kind (key-codes (.getKind k))]
-    {:char (if (= kind :normal) (.getCharacter k) kind)
-     :alt? (.isAltPressed k)
-     :ctrl? (.isCtrlPressed k)}))
+(defn parse-event [e] e)
 
-(defn listen-for-input [screen chan]
-  (async/go
-    (loop []
-      (let [k (.readInput screen)]
-        (if (nil? k)
-          (do (<! (async/timeout 100))
-              (recur))
-          (do (async/>! chan (parse-key k))
-              (recur)))))))
-
-(defrecord Display [screen input-chan]
+(defrecord Display [server in buffer]
   component/Lifecycle
 
   (start [this]
     (println "; Starting display")
-    (if screen
+    (if buffer
       this
-      (let [scr (TerminalFacade/createScreen)
-            chan (async/chan)]
-        (listen-for-input scr chan)
-        (.startScreen scr)
-        (assoc this :screen scr
-                    :input-chan chan))))
+      (assoc this :in (async/map< parse-event (input-chan server))
+                  :buffer (atom (DisplayBuffer. {:x 0 :y 0} [[]])))))
 
   (stop [this]
     (println "; Stopping display")
-    (if-not screen
+    (if-not buffer
       this
       (do
-        (.stopScreen screen)
-        (async/close! input-chan)
-        (assoc this :screen nil)))))
+        (async/close! in)
+        (assoc this :in nil :buffer nil)))))
 
 (defn create-display []
   (map->Display {}))
 
-(defn input-chan [display]
-  (:input-chan display))
+(defn event-chan [display]
+  (:in display))
 
 (defn set-cursor [display x y]
-  (.setCursorPosition (:screen display) x y))
+  (swap! (:buffer display) (fn [buffer]
+                             (assoc buffer :cursor {:x x :y y}))))
 
 (defn put-char [display x y c]
-  (.putString (:screen display) x y c
-                                Terminal$Color/DEFAULT
-                                Terminal$Color/DEFAULT #{}))
+  (swap! (:buffer display) (fn [buffer]
+                             (assoc-in buffer [y x] map->Cell {:c c
+                                                               :fg :white
+                                                               :bg :black}))))
 
-(defn refresh-screen [display]
-  (.refresh (:screen display)))
+(defn sync-display [display]
+  (emit (:server display) @(:buffer display)))
 
-(defn size [display]
-  (let [s (.getTerminalSize (:screen display))]
-    [(.getColumns s) (.getRows s)]))
+(defn size [display] [0 0])
