@@ -1,48 +1,117 @@
 package main
 
 import (
-    zmq "github.com/pebbe/zmq4"
-    "github.com/nsf/termbox-go"
-    "fmt"
+	"bufio"
+	"encoding/json"
+	"github.com/nsf/termbox-go"
+	"log"
+	"net"
 )
 
-func draw(reply []string) {
-    fmt.Printf("reply %s\n", reply)
+type SizeMessage struct {
+	Width  int
+	Height int
 }
 
-func main () {
-    err := termbox.Init()
-    if err != nil {
-        panic(err)
-    }
-    defer termbox.Close()
+type KeyMessage struct {
+	C    rune
+	Alt  bool
+	Ctrl bool
+}
 
-    client, err := zmq.NewSocket(zmq.REQ)
-    if err != nil {
-        panic(err)
-    }
-    client.Connect("tcp://127.0.0.1:8080")
+type Cell struct {
+	C  rune
+	Fg string
+	Bg string
+}
 
-    go func() {
-        reply, err := client.RecvMessage(0)
-        if err != nil {
-            panic(err)
-        }
+type DisplayMessage struct {
+	Cursor struct {
+		X int
+		Y int
+	}
+	Content [][]Cell
+}
 
-        draw(reply)
-    }()
+func emit(conn net.Conn, message interface{}) {
+	m, err := json.Marshal(message)
+	if err != nil {
+		log.Panic(err)
+	}
 
-loop:
-    for {
-        switch ev := termbox.PollEvent(); ev.Type {
-        case termbox.EventKey:
-            switch ev.Key {
-            case termbox.KeyEsc:
-                break loop
-            }
-        case termbox.EventError:
-            panic(ev.Err)
-        }
+	log.Printf("message-> %s\n", string(m[:]))
+	conn.Write(m)
+}
 
-    }
+func emitSize(conn net.Conn) {
+	width, height := termbox.Size()
+	emit(conn, SizeMessage{width, height})
+}
+
+func emitKey(conn net.Conn, ch rune, key termbox.Key, mod termbox.Modifier) {
+	emit(conn, KeyMessage{ch, mod == termbox.ModAlt, false})
+}
+
+func draw(message DisplayMessage) {
+	for x, row := range message.Content {
+		for y, cell := range row {
+			termbox.SetCell(x, y, cell.C, termbox.ColorWhite, termbox.ColorBlack)
+		}
+	}
+
+	termbox.SetCursor(message.Cursor.X, message.Cursor.Y)
+	termbox.Flush()
+}
+
+func listen(conn net.Conn) {
+	reader := bufio.NewReader(conn)
+
+	for {
+		reply, err := reader.ReadBytes('\n')
+		if err != nil {
+			log.Panic(err)
+		}
+
+		log.Printf("reply-> %s\n", string(reply[:]))
+
+		var message DisplayMessage
+		err = json.Unmarshal(reply, &message)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		draw(message)
+	}
+}
+
+func main() {
+	err := termbox.Init()
+	if err != nil {
+		log.Panic(err)
+	}
+	defer termbox.Close()
+
+	conn, err := net.Dial("tcp", "localhost:8080")
+	if err != nil {
+		log.Panic(err)
+	}
+	defer conn.Close()
+
+	go listen(conn)
+	emitSize(conn)
+
+	for {
+		ev := termbox.PollEvent()
+
+		switch ev.Type {
+		case termbox.EventKey:
+			emitKey(conn, ev.Ch, ev.Key, ev.Mod)
+		case termbox.EventResize:
+			emitSize(conn)
+		}
+
+		if ev.Key == termbox.KeyEsc {
+			return
+		}
+	}
 }

@@ -4,7 +4,6 @@
             [com.stuartsierra.component :as component]
             [schema.core :as schema]
             [schema.macros :as sm]
-            [zeromq.zmq :as zmq]
             [cheshire.core :as json]
             [whip.base.layout :refer :all]
             [whip.base.state :refer :all]

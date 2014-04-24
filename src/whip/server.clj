@@ -1,55 +1,58 @@
 (ns whip.server
-  (:require [zeromq.zmq :as zmq]
-            [clojure.core.async :as async]
+  (:require [clojure.core.async :as async]
             [com.stuartsierra.component :as component]
-            [cheshire.core :as json]))
+            [cheshire.core :as json])
+  (:import [java.net ServerSocket InetSocketAddress]
+           [java.io InputStreamReader BufferedReader DataOutputStream]))
 
 (defn listen [socket in]
-  (async/go
-    (loop []
-      (do (async/>! in (zmq/receive socket))
-          (recur)))))
+  (let [stream (InputStreamReader. (.getInputStream socket))
+        reader (BufferedReader. stream)]
+    (async/go
+      (loop []
+        (do (async/>! in (.readLine reader))
+            (recur))))))
 
 (defn output [socket out]
-  (async/go
-    (loop []
-      (do (zmq/send-str socket (async/<! out))
-          (recur)))))
+  (let [stream (DataOutputStream. (.getOutputStream socket))]
+    (async/go
+      (loop []
+        (do (.writeBytes stream (async/<! out))
+            (recur))))))
 
-(defrecord Server [port context socket in out]
+(defrecord Server [port socket-server socket in out]
   component/Lifecycle
 
   (start [this]
     (println "; Starting server")
-    (if context
+    (if socket
       this
-      (let [context (zmq/context 1)
-            socket (zmq/socket context :rep)
+      (let [socket-server (doto (ServerSocket.)
+                                (.setReuseAddress true)
+                                (.bind (InetSocketAddress. port)))
+            socket (.accept socket-server)
             in (async/chan 5)
             out (async/chan 5)]
-        (zmq/bind socket (str "tcp://*:" port))
         (listen socket in)
         (output socket out)
-        (assoc this :context (zmq/context 1)
+        (assoc this :socket-server socket-server
                     :socket socket
                     :in in :out out))))
 
   (stop [this]
     (println "; Stopping server")
-    (if-not context
+    (if-not socket
       this
-      (do (zmq/unbind socket (str "tcp://*:" port))
-          (map #(.close %) [socket context])
+      (do (map #(.close %) [socket socket-server])
           (map async/close! [in out])
-          (assoc this :context nil
-                      :socket nil
+          (assoc this :socket nil
                       :in nil :out nil)))))
 
 (defn create-server [port]
   (map->Server {:port port}))
 
 (defn input-chan [server]
-  (:in server))
+  (async/map< json/parse-string (:in server)))
 
 (defn emit [server message]
   (async/>!! (:out server) (json/generate-string message)))
