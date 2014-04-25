@@ -1,26 +1,28 @@
 (ns whip.server
   (:require [clojure.core.async :as async]
             [com.stuartsierra.component :as component]
-            [cheshire.core :as json])
+            [cheshire.core :as json]
+            [cheshire.generate :refer (add-encoder encode-str)])
   (:import [java.net ServerSocket InetSocketAddress]
            [java.io InputStreamReader BufferedReader DataOutputStream]))
+
+(add-encoder Character encode-str)
 
 (defn listen [socket in]
   (let [stream (InputStreamReader. (.getInputStream socket))
         reader (BufferedReader. stream)]
-    (async/go
-      (loop []
-        (do (async/>! in (-> (.readLine reader)
-                             (json/parse-string true)))
-            (recur))))))
+    (async/go-loop []
+      (do (async/>! in (-> (.readLine reader)
+                           (json/parse-string true)))
+          (recur)))))
 
 (defn output [socket out]
   (let [stream (DataOutputStream. (.getOutputStream socket))]
-    (async/go
-      (loop []
-        (do (.writeBytes stream (-> (async/<! out)
-                                    (json/generate-string)))
-            (recur))))))
+    (async/go-loop []
+      (do (.writeBytes stream (-> (async/<! out)
+                                  (json/generate-string)))
+          (.writeBytes stream "\n")
+          (recur)))))
 
 (defn create-io-chans [socket]
   (let [in (async/chan 5)

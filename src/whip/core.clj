@@ -61,9 +61,10 @@
     (set-cursor display (:x cursor) (:y cursor))
     (doseq [[pane-id loc] (:locs window)
            :let [pane (get panes pane-id)]]
-      (println "; 3")
       (draw-borders display loc pane)
-      (draw-pane display loc pane (get buffers (:buffer pane))))))
+      (draw-pane display loc pane (get buffers (:buffer pane))))
+    (sync-display display)
+    state))
 
 (defn resize-handler [state size-message]
   (let [{:keys [cursor panes windows]} state
@@ -95,7 +96,7 @@
       (let [[in out] (async/<!! (connections-chan server))
             display (-> (create-display in out)
                         (component/start))
-            [width height] (size display)
+            {:keys [width height]} (size display)
             state (init-state width height translate)]
         (async/go (main-loop display state))
         (recur)))))

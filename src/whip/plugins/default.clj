@@ -56,8 +56,7 @@
       state)))
 
 (defn translate [c]
-  (do (println c)
-  (match [(:char c) (:ctrl? c) (:alt? c)]
+  (match [(:c c) (:ctrl? c) (:alt? c)]
     [:up true _] (switch-pane 0 -1)
     [:down true _] (switch-pane 0 1)
     [:left true _] (switch-pane -1 0)
@@ -68,4 +67,4 @@
     [:right false _] (move-cursor 1 0)
     [\v _ _] (split-vertical)
     [\h _ _] (split-horizontal)
-    :else (print-miss c))))
+    :else (print-miss c)))

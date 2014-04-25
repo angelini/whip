@@ -6,6 +6,7 @@ import (
 	"github.com/nsf/termbox-go"
 	"log"
 	"net"
+	"unicode/utf8"
 )
 
 type MessageWrapper struct {
@@ -25,7 +26,7 @@ type KeyMessage struct {
 }
 
 type Cell struct {
-	C  rune   `json:"c"`
+	C  string `json:"c"`
 	Fg string `json:"fg"`
 	Bg string `json:"bg"`
 }
@@ -97,7 +98,8 @@ func emitKey(conn net.Conn, c rune, key termbox.Key, mod termbox.Modifier) {
 func draw(message DisplayMessage) {
 	for x, row := range message.Content {
 		for y, cell := range row {
-			termbox.SetCell(x, y, cell.C, termbox.ColorWhite, termbox.ColorBlack)
+			r, _ := utf8.DecodeRuneInString(cell.C)
+			termbox.SetCell(x, y, r, termbox.ColorWhite, termbox.ColorBlack)
 		}
 	}
 
@@ -113,8 +115,6 @@ func listen(conn net.Conn) {
 		if err != nil {
 			return
 		}
-
-		log.Printf("reply-> %s\n", string(reply[:]))
 
 		var message DisplayMessage
 		err = json.Unmarshal(reply, &message)
