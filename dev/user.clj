@@ -1,5 +1,6 @@
 (ns user
   (:require [clojure.tools.namespace.repl :refer (refresh)]
+            [clojure.test :refer (run-tests)]
             [clojure.core.async :as async]
             [clojure.math.numeric-tower :as math]
             [com.stuartsierra.component :as component]
@@ -12,7 +13,8 @@
             [whip.server :refer :all]
             [whip.display :refer :all]
             [whip.loader :refer :all]
-            [whip.core :refer :all]))
+            [whip.core :refer :all]
+            [whip.base.layout-test :as layout-test]))
 
 (def system nil)
 

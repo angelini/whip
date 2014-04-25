@@ -15,7 +15,7 @@
 (sm/defrecord Buffer
   [id :- s/Int
    name :- s/Str
-   content :- [[Character]]
+   content :- [[Cell]]
    meta :- {}])
 
 (sm/defrecord Pane
@@ -81,7 +81,26 @@
     (assoc pane :width (int (math/round (* n-width w-perc)))
                 :height (int (math/round (* n-height h-perc))))))
 
-(sm/defn visible-content :- [[Character]]
+(sm/defn strings->cells :- [[Cell]]
+  "Transforms an array of strings into a matrix of cells"
+  [strs :- [s/Str]
+   fg :- Color
+   bg :- Color]
+  (vec (map (fn [row]
+              (vec (map #(map->Cell {:c %
+                                     :fg fg
+                                     :bg bg})
+                        row)))
+            strs)))
+
+(sm/defn cells->strings :- [s/Str]
+  "Transforms a matrix of cells into an array of strings"
+  [cells :- [[Cell]]]
+  (vec (map (fn [row]
+              (apply str (map :c row)))
+            cells)))
+
+(sm/defn visible-content :- [[Cell]]
   "Returns the content of the buffer visible within the pane"
   [pane :- Pane
    buffer :- Buffer]
@@ -93,22 +112,22 @@
     (map (fn [r] (visible-cols r buf-x (+ buf-x width)))
          (subvec content first-row last-row))))
 
-(sm/defn pane-at :- s/Int
+(sm/defn pane-at :- (s/maybe s/Int)
   "Returns the ID of the pane at x and y"
   [window :- Window
-   panes :- [Pane]
+   panes :- {s/Int Pane}
    x :- s/Int
    y :- s/Int]
   (loop [[[pane-id loc] & locs] (seq (:locs window))]
-    (if (or (in-pane? loc (get panes pane-id) x y)
-            (nil? loc))
+    (if (or (nil? loc)
+            (in-pane? loc (get panes pane-id) x y))
       pane-id
       (recur locs))))
 
 (sm/defn resize
   "Returns a new window and panes with widths and heights adjusted to scale"
   [window :- Window
-   panes :- [Pane]
+   panes :- {s/Int Pane}
    n-width :- s/Int
    n-height :- s/Int]
   (let [{:keys [width height locs]} window

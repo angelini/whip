@@ -66,11 +66,12 @@
   (swap! (:buffer display) (fn [buffer]
                              (assoc buffer :cursor {:x x :y y}))))
 
-(defn put-char [display x y c]
+(defn put-cell [display x y cell]
   (swap! (:buffer display) (fn [buffer]
-                             (assoc-in buffer [y x] (map->Cell {:c c
-                                                                :fg :white
-                                                                :bg :black})))))
+                             (assoc-in buffer [y x] cell))))
+
+(defn put-char [display x y c]
+  (put-cell display x y (map->Cell {:c c :fg :white :bg :black})))
 
 (defn sync-display [display]
   (async/>!! (:out display) @(:buffer display)))

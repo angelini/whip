@@ -42,7 +42,7 @@
       (put-char display right y "|"))))
 
 (defn draw-row [display x y row]
-  (map #(put-char display %1 y %2) (iterate inc x) row))
+  (map #(put-cell display %1 y %2) (iterate inc x) row))
 
 (defn draw-pane [display loc pane buffer]
   (let [{:keys [x y]} loc
