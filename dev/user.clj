@@ -1,6 +1,7 @@
 (ns user
   (:require [clojure.tools.namespace.repl :refer (refresh)]
             [clojure.core.async :as async]
+            [clojure.math.numeric-tower :as math]
             [com.stuartsierra.component :as component]
             [schema.core :as schema]
             [schema.macros :as sm]

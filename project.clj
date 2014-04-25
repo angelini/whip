@@ -7,6 +7,8 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/core.match "0.2.1"]
                  [org.clojure/core.async "0.1.278.0-76b25b-alpha"]
+                 [org.clojure/math.numeric-tower "0.0.4"]
+                 [org.clojure/algo.generic "0.1.2"]
                  [com.stuartsierra/component "0.2.1"]
                  [prismatic/schema "0.2.1"]
                  [cheshire "5.3.1"]]

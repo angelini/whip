@@ -8,39 +8,74 @@ import (
 	"net"
 )
 
+type MessageWrapper struct {
+	Type string      `json:"type"`
+	Body interface{} `json:"body"`
+}
+
 type SizeMessage struct {
-	Width  int
-	Height int
+	Width  int `json:"width"`
+	Height int `json:"height"`
 }
 
 type KeyMessage struct {
-	C    rune
-	Alt  bool
-	Ctrl bool
+	C    string `json:"c"`
+	Alt  bool   `json:"alt?"`
+	Ctrl bool   `json:"ctrl?"`
 }
 
 type Cell struct {
-	C  rune
-	Fg string
-	Bg string
+	C  rune   `json:"c"`
+	Fg string `json:"fg"`
+	Bg string `json:"bg"`
 }
 
 type DisplayMessage struct {
 	Cursor struct {
-		X int
-		Y int
-	}
-	Content [][]Cell
+		X int `json:"x"`
+		Y int `json:"y"`
+	} `json:"cursor"`
+	Content [][]Cell `json:"content"`
 }
 
-func emit(conn net.Conn, message interface{}) {
-	m, err := json.Marshal(message)
+func parseKey(key termbox.Key) (c string, ctrl bool) {
+	switch key {
+	default:
+		return ":unknown", false
+	case termbox.KeyCtrlSpace:
+		return " ", true
+	case termbox.KeyArrowUp:
+		return ":up", false
+	case termbox.KeyArrowDown:
+		return ":down", false
+	case termbox.KeyArrowLeft:
+		return ":left", false
+	case termbox.KeyArrowRight:
+		return ":right", false
+	}
+}
+
+func messageType(body interface{}) string {
+	switch body.(type) {
+	default:
+		return "unknown"
+	case SizeMessage:
+		return "size"
+	case KeyMessage:
+		return "key"
+	}
+}
+
+func emit(conn net.Conn, body interface{}) {
+	mtype := messageType(body)
+
+	m, err := json.Marshal(MessageWrapper{mtype, body})
 	if err != nil {
 		log.Panic(err)
 	}
 
 	log.Printf("message-> %s\n", string(m[:]))
-	conn.Write(m)
+	conn.Write(append(m, '\n'))
 }
 
 func emitSize(conn net.Conn) {
@@ -48,8 +83,15 @@ func emitSize(conn net.Conn) {
 	emit(conn, SizeMessage{width, height})
 }
 
-func emitKey(conn net.Conn, ch rune, key termbox.Key, mod termbox.Modifier) {
-	emit(conn, KeyMessage{ch, mod == termbox.ModAlt, false})
+func emitKey(conn net.Conn, c rune, key termbox.Key, mod termbox.Modifier) {
+	cstring := string(c)
+	ctrl := false
+
+	if c == 0 {
+		cstring, ctrl = parseKey(key)
+	}
+
+	emit(conn, KeyMessage{cstring, mod == termbox.ModAlt, ctrl})
 }
 
 func draw(message DisplayMessage) {
@@ -69,7 +111,7 @@ func listen(conn net.Conn) {
 	for {
 		reply, err := reader.ReadBytes('\n')
 		if err != nil {
-			log.Panic(err)
+			return
 		}
 
 		log.Printf("reply-> %s\n", string(reply[:]))

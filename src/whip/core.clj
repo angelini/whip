@@ -12,15 +12,12 @@
 (defn create-system []
   (component/system-map
     :server (create-server 8080)
-    :loader (create-loader ["default"])
-    :display (component/using
-               (create-display)
-               [:server])))
+    :loader (create-loader ["default"])))
 
 (defn init-state [width height translate]
   (let [buffer (create-buffer)
         pane (create-pane (:id buffer) width height)
-        window (create-window (:id pane))
+        window (create-window (:id pane) width height)
         [wid pid bid] (map :id [window pane buffer])]
     (map->State {:buffers {bid buffer}
                  :panes {pid pane}
@@ -52,29 +49,53 @@
         visible (visible-content pane buffer)]
     (map #(draw-row display x %1 %2) (iterate inc y) visible)))
 
-(defn draw [display buffers panes window]
-  (doseq [[pane-id loc] (:locs window)
-         :let [pane (get panes pane-id)]]
-    (draw-borders display loc pane)
-    (draw-pane display loc pane (get buffers (:buffer pane)))))
+(defn translate [state key-message]
+  ((get-in state [:mode :translate]) key-message))
 
-(defn draw-loop [display init-state]
+(defn eval-handler [f state]
+  (f state))
+
+(defn draw [state display]
+  (let [{:keys [cursor buffers panes windows]} state
+        window (get windows (:window cursor))]
+    (set-cursor display (:x cursor) (:y cursor))
+    (doseq [[pane-id loc] (:locs window)
+           :let [pane (get panes pane-id)]]
+      (println "; 3")
+      (draw-borders display loc pane)
+      (draw-pane display loc pane (get buffers (:buffer pane))))))
+
+(defn resize-handler [state size-message]
+  (let [{:keys [cursor panes windows]} state
+        {:keys [width height]} size-message
+        window (get windows (:window cursor))
+        [window panes] (resize window panes width height)]
+    (-> state
+        (assoc :panes panes)
+        (assoc-in [:windows (:window cursor)] window))))
+
+(defn main-loop [display init-state]
   (loop [state init-state]
-    (let [c (async/<!! (input-chan display))
-          f ((get-in state [:mode :translate]) c)
-          new-state (f state)
-          {:keys [cursor buffers panes windows]} new-state
-          window (get windows (:window cursor))]
-      (println "state -->" new-state)
-      (draw display buffers panes window)
-      (set-cursor display (:x cursor) (:y cursor))
-      (sync-display display)
-      (recur new-state))))
+    (let [{:keys [type body] :as m} (async/<!! (message-chan display))]
+      (println "; Message" m)
+      (recur (case type
+                   :key (-> (translate state body)
+                            (eval-handler state)
+                            (draw display))
+                   :size (-> (resize-handler state body)
+                             (draw display))
+                   (do (println "; Unknown message" body)
+                       state))))))
 
 (defn main [system]
-  (let [{:keys [display loader]} system
-        [width height] (size display)
+  (let [{:keys [server loader]} system
         default (plugin loader "default")
-        translate ('translate (ns-map default))
-        state (init-state width height translate)]
-    (draw-loop display state)))
+        translate ('translate (ns-map default))]
+    (loop []
+      (let [[in out] (async/<!! (connections-chan server))
+            display (-> (create-display in out)
+                        (component/start))
+            [width height] (size display)
+            state (init-state width height translate)]
+        (async/go (main-loop display state))
+        (recur)))))

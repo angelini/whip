@@ -10,49 +10,57 @@
         reader (BufferedReader. stream)]
     (async/go
       (loop []
-        (do (async/>! in (.readLine reader))
+        (do (async/>! in (-> (.readLine reader)
+                             (json/parse-string true)))
             (recur))))))
 
 (defn output [socket out]
   (let [stream (DataOutputStream. (.getOutputStream socket))]
     (async/go
       (loop []
-        (do (.writeBytes stream (async/<! out))
+        (do (.writeBytes stream (-> (async/<! out)
+                                    (json/generate-string)))
             (recur))))))
 
-(defrecord Server [port socket-server socket in out]
+(defn create-io-chans [socket]
+  (let [in (async/chan 5)
+        out (async/chan 5)]
+    (listen socket in)
+    (output socket out)
+    [in out]))
+
+(defn emit-connections [socket-server chan]
+  (async/go
+    (loop []
+      (do (async/>! chan (.accept socket-server))
+          (recur)))))
+
+(defrecord Server [port socket-server chan]
   component/Lifecycle
 
   (start [this]
     (println "; Starting server")
-    (if socket
+    (if socket-server
       this
       (let [socket-server (doto (ServerSocket.)
                                 (.setReuseAddress true)
                                 (.bind (InetSocketAddress. port)))
-            socket (.accept socket-server)
-            in (async/chan 5)
-            out (async/chan 5)]
-        (listen socket in)
-        (output socket out)
+            chan (async/chan 5)]
+        (emit-connections socket-server chan)
         (assoc this :socket-server socket-server
-                    :socket socket
-                    :in in :out out))))
+                    :chan chan))))
 
   (stop [this]
     (println "; Stopping server")
-    (if-not socket
+    (if-not socket-server
       this
-      (do (map #(.close %) [socket socket-server])
-          (map async/close! [in out])
-          (assoc this :socket nil
-                      :in nil :out nil)))))
+      (do (.close socket-server)
+          (async/close! chan)
+          (assoc this :socket-server nil
+                      :chan nil)))))
 
 (defn create-server [port]
   (map->Server {:port port}))
 
-(defn input-chan [server]
-  (async/map< json/parse-string (:in server)))
-
-(defn emit [server message]
-  (async/>!! (:out server) (json/generate-string message)))
+(defn connections-chan [server]
+  (async/map< create-io-chans (:chan server)))
