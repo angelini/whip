@@ -79,6 +79,7 @@
   (loop [state init-state]
     (let [{:keys [type body] :as m} (async/<!! (message-chan display))]
       (println "; Message" m)
+      (println "; State" state)
       (recur (case type
                    :key (-> (translate state body)
                             (eval-handler state)

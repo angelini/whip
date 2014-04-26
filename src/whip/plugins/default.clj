@@ -42,8 +42,8 @@
   (with-window-panes-cursor (fn [window panes cursor]
     (loop [x (:x cursor)
            y (:y cursor)]
-      (let [{:keys [id] :as pane} (pane-at window panes x y)]
-        (cond (nil? pane) [window panes cursor]
+      (let [id (pane-at window panes x y)]
+        (cond (nil? id) [window panes cursor]
               (not= id (:pane cursor)) [window panes (assoc cursor :x x
                                                                    :y y
                                                                    :pane id)]
@@ -57,14 +57,14 @@
 
 (defn translate [k]
   (match [(:c k) (:ctrl? k) (:alt? k)]
-    [:up true _] (switch-pane 0 -1)
-    [:down true _] (switch-pane 0 1)
-    [:left true _] (switch-pane -1 0)
-    [:right true _] (switch-pane 1 0)
-    [:up false _] (move-cursor 0 -1)
-    [:down false _] (move-cursor 0 1)
-    [:left false _] (move-cursor -1 0)
-    [:right false _] (move-cursor 1 0)
+    [:up _ _] (move-cursor 0 -1)
+    [:down _ _] (move-cursor 0 1)
+    [:left _ _] (move-cursor -1 0)
+    [:right _ _] (move-cursor 1 0)
+    [\w _ _] (switch-pane 0 -1)
+    [\s _ _] (switch-pane 0 1)
+    [\a _ _] (switch-pane -1 0)
+    [\d _ _] (switch-pane 1 0)
     [\v _ _] (split-vertical)
     [\h _ _] (split-horizontal)
     :else (print-miss k)))
