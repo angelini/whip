@@ -32,7 +32,7 @@
 (defn parse-key-body [body]
   (let [c (:c body)]
     (cond
-      (= \: (.charAt c 0)) (assoc body :c (keyword (subs c 1)))
+      (= \: (.charAt ^String c 0)) (assoc body :c (keyword (subs c 1)))
       (= 1 (count c)) (assoc body :c (char (nth c 0)))
       :else body)))
 

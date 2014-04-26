@@ -3,13 +3,13 @@
             [com.stuartsierra.component :as component]
             [cheshire.core :as json]
             [cheshire.generate :refer (add-encoder encode-str)])
-  (:import [java.net ServerSocket InetSocketAddress]
+  (:import [java.net Socket ServerSocket InetSocketAddress]
            [java.io InputStreamReader BufferedReader DataOutputStream]))
 
 (add-encoder Character encode-str)
 
 (defn listen [socket in]
-  (let [stream (InputStreamReader. (.getInputStream socket))
+  (let [stream (InputStreamReader. (.getInputStream ^Socket socket))
         reader (BufferedReader. stream)]
     (async/go-loop []
       (do (async/>! in (-> (.readLine reader)
@@ -17,7 +17,7 @@
           (recur)))))
 
 (defn output [socket out]
-  (let [stream (DataOutputStream. (.getOutputStream socket))]
+  (let [stream (DataOutputStream. (.getOutputStream ^Socket socket))]
     (async/go-loop []
       (do (.writeBytes stream (-> (async/<! out)
                                   (json/generate-string)))
@@ -34,7 +34,7 @@
 (defn emit-connections [socket-server chan]
   (async/go
     (loop []
-      (do (async/>! chan (.accept socket-server))
+      (do (async/>! chan (.accept ^ServerSocket socket-server))
           (recur)))))
 
 (defrecord Server [port socket-server chan]
@@ -56,7 +56,7 @@
     (println "; Stopping server")
     (if-not socket-server
       this
-      (do (.close socket-server)
+      (do (.close ^ServerSocket socket-server)
           (async/close! chan)
           (assoc this :socket-server nil
                       :chan nil)))))
