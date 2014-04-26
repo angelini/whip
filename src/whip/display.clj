@@ -23,11 +23,18 @@
   [cursor :- {:x s/Int :y s/Int}
    content :- [[Cell]]])
 
+(sm/defrecord DisplayMessage
+  [cursor :- {:x s/Int :y s/Int}
+   diff :- [{:x s/Int
+             :y s/Int
+             :cell Cell}]])
+
 (defn parse-key-body [body]
   (let [c (:c body)]
-    (if (= \: (.charAt c 0))
-      (assoc body :c (keyword (subs c 1)))
-      body)))
+    (cond
+      (= \: (.charAt c 0)) (assoc body :c (keyword (subs c 1)))
+      (= 1 (count c)) (assoc body :c (char (nth c 0)))
+      :else body)))
 
 (defn parse-message [message]
   (let [{:keys [type body]} message]
@@ -52,7 +59,16 @@
   {:height (count content)
    :width (count (nth content 0))})
 
-(defrecord Display [in out buffer]
+(defn diff-content [prev curr]
+  (flatten (for [y (range 0 (count curr))
+                 :let [row (get curr y)]
+                 :when (not= row (get prev y))]
+             (for [x (range 0 (count row))
+                   :let [cell (get-in curr [y x])]
+                   :when (not= cell (get-in prev [y x]))]
+               {:x x :y y :cell cell}))))
+
+(defrecord Display [in out buffer prev]
   component/Lifecycle
 
   (start [this]
@@ -61,6 +77,7 @@
       this
       (assoc this :in (async/map< parse-message in)
                   :out out
+                  :prev (atom nil)
                   :buffer (atom (DisplayBuffer. {:x 0 :y 0}
                                                 (generate-blank-content 10 10))))))
 
@@ -70,7 +87,7 @@
       this
       (do
         (map async/close! [in out])
-        (assoc this :in nil :out nil :buffer nil)))))
+        (assoc this :in nil :out nil :buffer nil :prev nil)))))
 
 (defn create-display [in out]
   (map->Display {:in in
@@ -92,7 +109,12 @@
   (put-cell display x y (map->Cell {:c c :fg :white :bg :black})))
 
 (defn sync-display [display]
-  (async/>!! (:out display) @(:buffer display)))
+  (let [prev @(:prev display)
+        buffer @(:buffer display)
+        diff (diff-content (:content prev) (:content buffer))]
+    (swap! (:prev display) (constantly buffer))
+    (async/>!! (:out display) (map->DisplayMessage {:cursor (:cursor buffer)
+                                                    :diff diff}))))
 
 (defn size [display]
   (let [buffer @(:buffer display)]

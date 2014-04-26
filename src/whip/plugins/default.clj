@@ -55,8 +55,8 @@
       (println "Unknown char: " c)
       state)))
 
-(defn translate [c]
-  (match [(:c c) (:ctrl? c) (:alt? c)]
+(defn translate [k]
+  (match [(:c k) (:ctrl? k) (:alt? k)]
     [:up true _] (switch-pane 0 -1)
     [:down true _] (switch-pane 0 1)
     [:left true _] (switch-pane -1 0)
@@ -67,4 +67,4 @@
     [:right false _] (move-cursor 1 0)
     [\v _ _] (split-vertical)
     [\h _ _] (split-horizontal)
-    :else (print-miss c)))
+    :else (print-miss k)))

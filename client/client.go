@@ -6,7 +6,6 @@ import (
 	"github.com/nsf/termbox-go"
 	"log"
 	"net"
-	"unicode/utf8"
 )
 
 type MessageWrapper struct {
@@ -31,12 +30,20 @@ type Cell struct {
 	Bg string `json:"bg"`
 }
 
+type Cursor struct {
+	X int `json:"x"`
+	Y int `json:"y"`
+}
+
+type DiffCell struct {
+	X int     `json:"x"`
+	Y int     `json:"y"`
+	Cell Cell `json:"cell"`
+}
+
 type DisplayMessage struct {
-	Cursor struct {
-		X int `json:"x"`
-		Y int `json:"y"`
-	} `json:"cursor"`
-	Content [][]Cell `json:"content"`
+	Cursor Cursor   `json:"cursor"`
+	Diff []DiffCell `json:"diff"`
 }
 
 func parseKey(key termbox.Key) (c string, ctrl bool) {
@@ -96,11 +103,8 @@ func emitKey(conn net.Conn, c rune, key termbox.Key, mod termbox.Modifier) {
 }
 
 func draw(message DisplayMessage) {
-	for x, row := range message.Content {
-		for y, cell := range row {
-			r, _ := utf8.DecodeRuneInString(cell.C)
-			termbox.SetCell(x, y, r, termbox.ColorWhite, termbox.ColorBlack)
-		}
+	for _, diff := range message.Diff {
+		termbox.SetCell(diff.X, diff.Y, rune(diff.Cell.C[0]), termbox.ColorWhite, termbox.ColorBlack)
 	}
 
 	termbox.SetCursor(message.Cursor.X, message.Cursor.Y)
