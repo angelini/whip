@@ -77,17 +77,18 @@
 
 (defn main-loop [display init-state]
   (loop [state init-state]
-    (let [{:keys [type body] :as m} (async/<!! (message-chan display))]
-      (println "; Message" m)
-      (println "; State" state)
-      (recur (case type
-                   :key (-> (translate state body)
-                            (eval-handler state)
-                            (draw display))
-                   :size (-> (resize-handler state body)
-                             (draw display))
-                   (do (println "; Unknown message" body)
-                       state))))))
+    (if-let [{:keys [type body] :as m} (async/<!! (message-chan display))]
+      (do (println "; Message" m)
+          (println "; State" state)
+          (recur (case type
+                       :key (-> (translate state body)
+                                (eval-handler state)
+                                (draw display))
+                       :size (-> (resize-handler state body)
+                                 (draw display))
+                       (do (println "; Unknown message" body)
+                           state))))
+      (component/stop display))))
 
 (defn main [system]
   (let [{:keys [server loader]} system

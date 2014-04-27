@@ -12,17 +12,23 @@
   (let [stream (InputStreamReader. (.getInputStream ^Socket socket))
         reader (BufferedReader. stream)]
     (async/go-loop []
-      (do (async/>! in (-> (.readLine reader)
-                           (json/parse-string true)))
-          (recur)))))
+      (if-let [message (-> (.readLine reader)
+                           (json/parse-string true))]
+        (do (async/>! in message)
+            (recur))
+        (do (.close socket)
+            (async/close! in))))))
 
 (defn output [socket out]
   (let [stream (DataOutputStream. (.getOutputStream ^Socket socket))]
     (async/go-loop []
-      (do (.writeBytes stream (-> (async/<! out)
-                                  (json/generate-string)))
-          (.writeBytes stream "\n")
-          (recur)))))
+      (let [message (async/<! out)]
+        (cond (.isClosed socket) (async/close! out)
+              (nil? message) (.close socket)
+              :else (do (.writeBytes stream (-> message
+                                                (json/generate-string)
+                                                (str "\n")))
+                        (recur)))))))
 
 (defn create-io-chans [socket]
   (let [in (async/chan 5)
