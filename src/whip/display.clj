@@ -60,13 +60,15 @@
    :width (count (nth content 0))})
 
 (defn diff-content [prev curr]
-  (flatten (for [y (range 0 (count curr))
-                 :let [row (get curr y)]
-                 :when (not= row (get prev y))]
-             (for [x (range 0 (count row))
-                   :let [cell (get-in curr [y x])]
-                   :when (not= cell (get-in prev [y x]))]
-               {:x x :y y :cell cell}))))
+  (-> (for [y (range 0 (count curr))
+            :let [row (get curr y)]
+            :when (not= row (get prev y))]
+        (for [x (range 0 (count row))
+              :let [cell (get-in curr [y x])]
+              :when (not= cell (get-in prev [y x]))]
+          {:x x :y y :cell cell}))
+      (flatten)
+      (vec)))
 
 (defrecord Display [in out buffer prev]
   component/Lifecycle

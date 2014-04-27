@@ -36,14 +36,14 @@ type Cursor struct {
 }
 
 type DiffCell struct {
-	X int     `json:"x"`
-	Y int     `json:"y"`
+	X    int  `json:"x"`
+	Y    int  `json:"y"`
 	Cell Cell `json:"cell"`
 }
 
 type DisplayMessage struct {
-	Cursor Cursor   `json:"cursor"`
-	Diff []DiffCell `json:"diff"`
+	Cursor Cursor     `json:"cursor"`
+	Diff   []DiffCell `json:"diff"`
 }
 
 func parseKey(key termbox.Key) (c string, ctrl bool) {
