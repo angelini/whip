@@ -36,3 +36,14 @@
            (assoc :cursor n-cursor#)
            (assoc :panes n-panes#)
            (assoc-in [:windows (:window cursor#)] n-window#)))))
+
+(defmacro with-pane-buffer-cursor [f]
+  `(sm/fn new-state :- State [state# :- State]
+     (let [cursor# (:cursor state#)
+           pane# (get-in state# [:panes (:pane cursor#)])
+           buffer# (get-in state# [:buffers (:buffer pane#)])
+           [n-pane# n-buffer# n-cursor#] (~f pane# buffer# cursor#)]
+       (-> state#
+           (assoc :cursor n-cursor#)
+           (assoc-in [:panes (:pane cursor#)] n-pane#)
+           (assoc-in [:buffers (:buffer pane#)] n-buffer#)))))

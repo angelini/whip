@@ -20,3 +20,21 @@
    buffers :- {s/Int Buffer}
    panes :- {s/Int Pane}
    windows :- {s/Int Window}])
+
+(sm/defn cursor-pane-loc :- {:x s/Int :y s/Int}
+  "Returns the x and y position of the cursor with respect to the pane"
+  [cursor :- Cursor
+   pane :- Pane
+   pane-loc :- {:x s/Int :y s/Int}]
+  {:x (- (:x cursor) (:x pane-loc))
+   :y (- (:y cursor) (:y pane-loc))})
+
+(sm/defn cursor-buffer-loc :- {:x s/Int :y s/Int}
+  "Returns the x and y position of the cursor with respect to the buffer"
+  [cursor :- Cursor
+   buffer :- Buffer
+   pane :- Pane
+   pane-loc :- {:x s/Int :y s/Int}]
+  (let [{:keys [x y]} (cursor-pane-loc cursor pane pane-loc)]
+    {:x (+ (:buf-x pane) x)
+     :y (+ (:buf-y pane) y)}))

@@ -124,6 +124,14 @@
       pane-id
       (recur locs))))
 
+(sm/defn insert-at :- Buffer
+  "Returns a new buffer with char c at x and y"
+  [buffer :- Buffer
+   c :- Character
+   x :- s/Int
+   y :- s/Int]
+  buffer)
+
 (sm/defn resize
   "Returns a new window and panes with widths and heights adjusted to scale"
   [window :- Window
