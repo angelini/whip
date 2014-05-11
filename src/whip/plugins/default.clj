@@ -2,6 +2,7 @@
   (:require [whip.base.layout :refer :all]
             [whip.base.state :refer :all]
             [whip.base.macros :refer :all]
+            [whip.plugins.plugin :refer [Plugin]]
             [clojure.core.match :refer [match]]))
 
 (defn split-with-border [size]
@@ -55,16 +56,20 @@
       (println "Unknown char: " c)
       state)))
 
-(defn translate [k]
-  (match [(:c k) (:ctrl? k) (:alt? k)]
-    [:up _ _] (move-cursor 0 -1)
-    [:down _ _] (move-cursor 0 1)
-    [:left _ _] (move-cursor -1 0)
-    [:right _ _] (move-cursor 1 0)
-    [\w _ _] (switch-pane 0 -1)
-    [\s _ _] (switch-pane 0 1)
-    [\a _ _] (switch-pane -1 0)
-    [\d _ _] (switch-pane 1 0)
-    [\v _ _] (split-vertical)
-    [\h _ _] (split-horizontal)
-    :else (print-miss k)))
+(deftype Default []
+  Plugin
+  (translate [this k]
+    (match [(:c k) (:ctrl? k) (:alt? k)]
+      [:up _ _] (move-cursor 0 -1)
+      [:down _ _] (move-cursor 0 1)
+      [:left _ _] (move-cursor -1 0)
+      [:right _ _] (move-cursor 1 0)
+      [\w _ _] (switch-pane 0 -1)
+      [\s _ _] (switch-pane 0 1)
+      [\a _ _] (switch-pane -1 0)
+      [\d _ _] (switch-pane 1 0)
+      [\v _ _] (split-vertical)
+      [\h _ _] (split-horizontal)
+      :else (print-miss k))))
+
+(defn create [] (new Default))

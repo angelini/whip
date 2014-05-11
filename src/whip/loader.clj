@@ -5,7 +5,7 @@
   (let [file (str "src/whip/plugins/" name ".clj")
         sym (symbol (str "whip.plugins." name))]
     (load-file file)
-    sym))
+    (('create (ns-map sym)))))
 
 (defrecord Loader [plugins loaded]
   component/Lifecycle

@@ -1,12 +1,13 @@
 (ns whip.base.state
   (:require [whip.base.layout :refer :all]
+            [whip.plugins.plugin :refer [Plugin]]
             [schema.core :as s]
             [schema.macros :as sm])
   (:import [whip.base.layout Buffer Pane Window]))
 
 (sm/defrecord Mode
   [name :- s/Str
-   translate :- s/Any])
+   plugin :- Plugin])
 
 (sm/defrecord Cursor
   [x :- s/Int

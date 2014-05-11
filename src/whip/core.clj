@@ -1,6 +1,7 @@
 (ns whip.core
   (:require [whip.base.layout :refer :all]
             [whip.base.state :refer :all]
+            [whip.plugins.plugin :refer :all]
             [whip.server :refer :all]
             [whip.display :refer :all]
             [whip.loader :refer :all]
@@ -12,9 +13,9 @@
 (defn create-system []
   (component/system-map
     :server (create-server 8080)
-    :loader (create-loader ["default"])))
+    :loader (create-loader ["default" "insert"])))
 
-(defn init-state [width height translate]
+(defn init-state [width height plugin]
   (let [buffer (create-buffer)
         pane (create-pane (:id buffer) width height)
         window (create-window (:id pane) width height)
@@ -23,7 +24,7 @@
                  :panes {pid pane}
                  :windows {wid window}
                  :mode (map->Mode {:name "default"
-                                   :translate translate})
+                                   :plugin plugin})
                  :cursor (map->Cursor {:x 0
                                        :y 0
                                        :pane pid
@@ -49,8 +50,8 @@
         visible (visible-content pane buffer)]
     (map #(draw-row display x %1 %2) (iterate inc y) visible)))
 
-(defn translate [state key-message]
-  ((get-in state [:mode :translate]) key-message))
+(defn get-handler [state key-message]
+  (translate (get-in state [:mode :plugin]) key-message))
 
 (defn eval-handler [f state]
   (f state))
@@ -81,7 +82,7 @@
       (do (println "; Message" m)
           (println "; State" state)
           (recur (case type
-                       :key (-> (translate state body)
+                       :key (-> (get-handler state body)
                                 (eval-handler state)
                                 (draw display))
                        :size (-> (resize-handler state body)
@@ -92,13 +93,12 @@
 
 (defn main [system]
   (let [{:keys [server loader]} system
-        default (plugin loader "default")
-        translate ('translate (ns-map default))]
+        default (plugin loader "default")]
     (loop []
       (let [[in out] (async/<!! (connections-chan server))
             display (-> (create-display in out)
                         (component/start))
             {:keys [width height]} (size display)
-            state (init-state width height translate)]
+            state (init-state width height default)]
         (async/go (main-loop display state))
         (recur)))))
