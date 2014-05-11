@@ -15,8 +15,7 @@
 (sm/defrecord Buffer
   [id :- s/Int
    name :- s/Str
-   content :- [[Cell]]
-   meta :- {}])
+   content :- [[Cell]]])
 
 (sm/defrecord Pane
   [id :- s/Int
@@ -81,7 +80,7 @@
     (assoc pane :width (int (math/round (* n-width w-perc)))
                 :height (int (math/round (* n-height h-perc))))))
 
-(sm/defn strings->cells :- [[Cell]]
+(sm/defn ^:always-validate strings->cells :- [[Cell]]
   "Transforms an array of strings into a matrix of cells"
   [strs :- [s/Str]
    fg :- Color
@@ -93,14 +92,14 @@
                         row)))
             strs)))
 
-(sm/defn cells->strings :- [s/Str]
+(sm/defn ^:always-validate cells->strings :- [s/Str]
   "Transforms a matrix of cells into an array of strings"
   [cells :- [[Cell]]]
   (vec (map (fn [row]
               (apply str (map :c row)))
             cells)))
 
-(sm/defn visible-content :- [[Cell]]
+(sm/defn ^:always-validate visible-content :- [[Cell]]
   "Returns the content of the buffer visible within the pane"
   [pane :- Pane
    buffer :- Buffer]
@@ -112,7 +111,7 @@
     (map (fn [r] (visible-cols r buf-x (+ buf-x width)))
          (subvec content first-row last-row))))
 
-(sm/defn pane-at :- (s/maybe s/Int)
+(sm/defn ^:always-validate pane-at :- (s/maybe s/Int)
   "Returns the ID of the pane at x and y"
   [window :- Window
    panes :- {s/Int Pane}
@@ -124,7 +123,7 @@
       pane-id
       (recur locs))))
 
-(sm/defn insert-at :- Buffer
+(sm/defn ^:always-validate insert-at :- Buffer
   "Returns a new buffer with char c at x and y"
   [buffer :- Buffer
    c :- Character
@@ -132,7 +131,7 @@
    y :- s/Int]
   buffer)
 
-(sm/defn resize
+(sm/defn ^:always-validate resize
   "Returns a new window and panes with widths and heights adjusted to scale"
   [window :- Window
    panes :- {s/Int Pane}

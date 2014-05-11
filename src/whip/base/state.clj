@@ -21,7 +21,7 @@
    panes :- {s/Int Pane}
    windows :- {s/Int Window}])
 
-(sm/defn cursor-pane-loc :- {:x s/Int :y s/Int}
+(sm/defn ^:always-validate cursor-pane-loc :- {:x s/Int :y s/Int}
   "Returns the x and y position of the cursor with respect to the pane"
   [cursor :- Cursor
    pane :- Pane
@@ -29,7 +29,7 @@
   {:x (- (:x cursor) (:x pane-loc))
    :y (- (:y cursor) (:y pane-loc))})
 
-(sm/defn cursor-buffer-loc :- {:x s/Int :y s/Int}
+(sm/defn ^:always-validate cursor-buffer-loc :- {:x s/Int :y s/Int}
   "Returns the x and y position of the cursor with respect to the buffer"
   [cursor :- Cursor
    buffer :- Buffer
